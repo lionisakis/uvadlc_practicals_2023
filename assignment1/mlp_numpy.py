@@ -20,6 +20,7 @@ You should fill in code into indicated sections.
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+from filecmp import clear_cache
 
 from modules import *
 
@@ -52,7 +53,17 @@ class MLP(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        self.weights=[]
+        self.activation_fucntions=[]
+        theInput=n_inputs
+        theOutput=n_hidden[0]
+        for i in n_hidden:
+          self.weights.append(LinearModule(theInput,theOutput))
+          self.activation_fucntions.append(ELUModule())
+          theInput=theOutput
+          theOutput=i
+        self.weights.append(LinearModule(theInput,n_classes))
+        self.activation_fucntions.append(SoftMaxModule())
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -74,7 +85,9 @@ class MLP(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        out=x
+        for w,activation_function in zip(self.weights,self.activation_fucntions):
+          out=activation_function.forward(w.forward(out))
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -91,11 +104,11 @@ class MLP(object):
         TODO:
         Implement backward pass of the network.
         """
-
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        for weights,activation in zip(self.weights[::-1],self.activation_fucntions[::-1]):
+          dout=weights.backward(activation.backward(dout))
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -112,7 +125,9 @@ class MLP(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        for i in range(self.weights):
+          self.weights[i].clear_cache()
+          self.activation_fucntions[i].clear_cache()
         #######################
         # END OF YOUR CODE    #
         #######################
