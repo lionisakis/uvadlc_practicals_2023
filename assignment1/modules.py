@@ -50,7 +50,14 @@ class LinearModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        if input_layer:
+          self.params['weight']=np.random.randn(out_features,in_features)*np.sqrt(1/in_features)
+        else:
+          self.params['weight']=np.random.randn(out_features,in_features)*np.sqrt(2/in_features)
+        self.params['bias']=np.zeros(out_features)
+        self.grads['weight']=np.zeros(out_features,in_features)
+        self.grads['bias']=np.zeros(out_features)
+        self.input=None
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -73,7 +80,8 @@ class LinearModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        self.input=x
+        out=self.input@self.params["weight"].T+self.params["bias"]
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -97,7 +105,9 @@ class LinearModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        self.grads["weight"]=dout.T@self.input
+        self.grads["bias"]=dout.sum(axis=0)
+        dx=dout@self.params["weight"]
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -114,7 +124,9 @@ class LinearModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        self.params = {'weight': None, 'bias': None}
+        self.grads = {'weight': None, 'bias': None} 
+        self.input=None
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -143,7 +155,8 @@ class ELUModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        self.input=x
+        out=np.where(x>0,x,(np.exp(x)-1))
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -165,7 +178,7 @@ class ELUModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        dx=dout*np.where(self.input>0,1,np.exp(self.input))
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -182,7 +195,7 @@ class ELUModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        self.input=None
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -211,7 +224,11 @@ class SoftMaxModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        self.input=x
+        b=np.max(x,axis=1).reshape(-1,1)
+        tmp=np.exp(x-b)
+        self.softmax=tmp/np.sum(tmp,axis=1).reshape(-1,1)
+        out=self.softmax
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -222,7 +239,7 @@ class SoftMaxModule(object):
         """
         Backward pass.
         Args:
-          dout: gradients of the previous modul
+          dout: gradients of the previous module
         Returns:
           dx: gradients with respect to the input of the module
 
@@ -233,7 +250,7 @@ class SoftMaxModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        dx=self.softmax*(dout-np.sum(dout*self.softmax,axis=1).reshape(-1,1))
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -251,7 +268,8 @@ class SoftMaxModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        self.input=None
+        self.softmax=None
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -278,7 +296,14 @@ class CrossEntropyModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        # make an one hot vector for each label and columns the max value of y
+        one_hot_vector=np.zeros(x.shape)
+        # set the value of the one hot vector to 1 if the label is the same as the column
+        one_hot_vector[np.arange(y.shape[0]),y]=1
+        # calculate the cross entropy loss
+        L=-one_hot_vector*np.log(x)
+        # out=np.average(L)
+        out=np.sum(L)/x.shape[0]
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -301,6 +326,12 @@ class CrossEntropyModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
+        # make an one hot vector for each label and columns the max value of y
+        one_hot_vector=np.zeros(x.shape)
+        # set the value of the one hot vector to 1 if the label is the same as the column
+        one_hot_vector[np.arange(y.shape[0]),y]=1
+        # calculate the gradient of the cross entropy loss
+        dx=-(one_hot_vector/x)*1/x.shape[0]
 
         #######################
         # END OF YOUR CODE    #
