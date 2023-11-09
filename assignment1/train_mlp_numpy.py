@@ -48,7 +48,13 @@ def confusion_matrix(predictions, targets):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-
+    total_classes=np.unique(targets)
+    conf_mat=np.zeros((total_classes,total_classes))
+    for i in range(total_classes):
+      for j in range(total_classes):
+        predicted=np.sum(np.where(predictions==i),1,0)
+        truth=np.sum(np.where(targets==j),1,0)
+        conf_mat[i,j]= predicted+truth
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -69,7 +75,24 @@ def confusion_matrix_to_metrics(confusion_matrix, beta=1.):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-
+    metrics={}
+    total_classes=confusion_matrix.shape()[0]
+    TP,FP,FN,TN=[],[],[],[]
+    for i in range(total_classes):
+      TP.append(confusion_matrix[i,i])
+      FP.append(confusion_matrix[i,:i]+confusion_matrix[i,i:])
+      FN.append(confusion_matrix[:i,i]+confusion_matrix[i:,i])
+      tmp=0
+      for j in range(total_classes):
+        if j==i:
+          continue
+        tmp+=confusion_matrix[:i,i]
+      TN.append(tmp)
+    TP,FP,FN,TN=np.array(TP),np.array(FP),np.array(FN),np.array(TN)
+    metrics["accuracy"]=np.sum(TP+FP)/np.sum(TP+FP+FN+TN)
+    metrics["precision"]=np.sum(TP,axis=0)/np.sum(TP+FP,axis=0)
+    metrics["recall"]=np.sum(TP,axis=0)/np.sum(TP+FN,axis=0)
+    metrics["f1_beta"]=((1+np.power(beta,2))*metrics["precision"]*metrics["recall"])/(np.power(beta,2)*metrics["precision"]+metrics["recall"])
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -96,7 +119,24 @@ def evaluate_model(model, data_loader, num_classes=10):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-
+    accuracy=[]
+    precision=[]
+    recall=[]
+    f1_beta=[]
+    for x,y in data_loader:
+      predictions=model.forward(x)
+      confusion_matrix=confusion_matrix(predictions,y)
+      tmp=confusion_matrix_to_metrics(confusion_matrix, beta=1.)
+      accuracy.append(tmp["accuracy"])
+      precision.append(tmp["precision"])
+      recall.append(tmp["recall"])
+      f1_beta.append(tmp["f1_beta"])
+    
+    metrics={}
+    metrics["accuracy"]=np.mean(np.array(accuracy))
+    metrics["precision"]=precision
+    metrics["recall"]=recall
+    metrics["f1_beta"]=f1_beta    
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -135,11 +175,11 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
 
     Hint: you can save your best model by deepcopy-ing it.
     """
-
+    logging_dict={}
     # Set the random seeds for reproducibility
     np.random.seed(seed)
     torch.manual_seed(seed)
-
+    print(hidden_dims, lr, batch_size, epochs, seed, data_dir)
     ## Loading the dataset
     cifar10 = cifar10_utils.get_cifar10(data_dir)
     cifar10_loader = cifar10_utils.get_dataloader(cifar10, batch_size=batch_size,
@@ -150,14 +190,24 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
     #######################
 
     # TODO: Initialize model and loss module
-    model = ...
-    loss_module = ...
+    print(cifar10_loader["train"])
+    # print('cifar10_loader["train"].shape',cifar10_loader["train"].x.shape)
+    model = MLP(3072,hidden_dims, 10)
+    loss_module = CrossEntropyModule()
     # TODO: Training loop including validation
-    val_accuracies = ...
+    val_accuracies=[]
+    for epoch in range(epochs):
+      model.forward(cifar10_loader["train"])
+      loss_module.forward(model.output,cifar10_loader["train"])
+      model.backward(loss_module.backward())
+      for w in model.weights:
+        w.weight=w.weight-lr*w.grad_weight
+        w.bias=w.bias-lr*w.grad_bias
+      val_accuracies.append(evaluate_model(model, cifar10_loader["validation"], num_classes=10))
     # TODO: Test best model
-    test_accuracy = ...
+    test_accuracy = evaluate_model(model, cifar10_loader["test"], num_classes=10)
     # TODO: Add any information you might want to save for plotting
-    logging_info = ...
+    logging_info = [epoch]
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -165,31 +215,33 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
     return model, val_accuracies, test_accuracy, logging_dict
 
 
-if __name__ == '__main__':
-    # Command line arguments
-    parser = argparse.ArgumentParser()
+# if __name__ == '__main__':
+#     # Command line arguments
+#     parser = argparse.ArgumentParser()
     
-    # Model hyperparameters
-    parser.add_argument('--hidden_dims', default=[128], type=int, nargs='+',
-                        help='Hidden dimensionalities to use inside the network. To specify multiple, use " " to separate them. Example: "256 128"')
+#     # Model hyperparameters
+#     parser.add_argument('--hidden_dims', default=[128], type=int, nargs='+',
+#                         help='Hidden dimensionalities to use inside the network. To specify multiple, use " " to separate them. Example: "256 128"')
     
-    # Optimizer hyperparameters
-    parser.add_argument('--lr', default=0.1, type=float,
-                        help='Learning rate to use')
-    parser.add_argument('--batch_size', default=128, type=int,
-                        help='Minibatch size')
+#     # Optimizer hyperparameters
+#     parser.add_argument('--lr', default=0.1, type=float,
+#                         help='Learning rate to use')
+#     parser.add_argument('--batch_size', default=128, type=int,
+#                         help='Minibatch size')
 
-    # Other hyperparameters
-    parser.add_argument('--epochs', default=10, type=int,
-                        help='Max number of epochs')
-    parser.add_argument('--seed', default=42, type=int,
-                        help='Seed to use for reproducing results')
-    parser.add_argument('--data_dir', default='data/', type=str,
-                        help='Data directory where to store/find the CIFAR10 dataset.')
+#     # Other hyperparameters
+#     parser.add_argument('--epochs', default=10, type=int,
+#                         help='Max number of epochs')
+#     parser.add_argument('--seed', default=42, type=int,
+#                         help='Seed to use for reproducing results')
+#     parser.add_argument('--data_dir', default='data/', type=str,
+#                         help='Data directory where to store/find the CIFAR10 dataset.')
 
-    args = parser.parse_args()
-    kwargs = vars(args)
-
-    train(**kwargs)
-    # Feel free to add any additional functions, such as plotting of the loss curve here
-    
+#     args = parser.parse_args()
+#     kwargs = vars(args)
+#     print(kwargs)
+#     model, val_accuracies, test_accuracy, logging_dict=train(**kwargs)
+#     # Feel free to add any additional functions, such as plotting of the loss curve here
+#     matplotlib.pyplot.plot(val_accuracies["accuracy"],label="Validation Accuracy")
+#     matplotlib.pyplot.legend()
+#     matplotlib.pyplot.savefig(args[-1]+"/accuracy.png")
